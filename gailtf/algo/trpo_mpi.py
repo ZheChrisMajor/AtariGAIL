@@ -179,8 +179,6 @@ def learn(args,
         iters_so_far = int(load_model_path.split("-")[-1]) + 1
         U.load_state(load_model_path)
 
-
-
     while True:
         if callback: callback(locals(), globals())
         if max_timesteps and timesteps_so_far >= max_timesteps:
@@ -299,9 +297,6 @@ def learn(args,
             # d_adam.minimize(discriminator.total_loss, var_list=discriminator.get_trainable_variables())
 
             exp_logits, gen_logits = discriminator.get_logits(ob_batch, ac_batch, ob_expert, ac_expert)
-
-            
-
 
             try:
                 if iters_so_far == 0:

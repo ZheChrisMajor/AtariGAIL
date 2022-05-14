@@ -74,7 +74,7 @@ def printArgs(args):
 
 def get_task_name(args):
     discrete = (".D." if args.discrete else ".MD")
-    if args.task == 'train_gail' or args.task == 'discriminator':
+    if args.task == 'train_gail':
         task_name = args.alg + "_gail."
         if args.pretrained:
             task_name += "with_pretrained."
