@@ -79,6 +79,6 @@ class TransitionClassifier(object):
     obs = np.expand_dims(obs, 0)
     acs = np.expand_dims(acs, 0)
     feed_dict = {self.generator_obs_ph:obs, self.generator_acs_ph:acs}
-    reward = sess.run(self.reward_op, feed_dict)
+    reward = sess.run(self.reward_op, feed_dict) # LOOK HERE
     return reward
 

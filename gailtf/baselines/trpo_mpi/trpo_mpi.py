@@ -1,3 +1,4 @@
+from telnetlib import theNULL
 from gailtf.baselines.common import explained_variance, zipsame, dataset
 from gailtf.baselines import logger
 import gailtf.baselines.common.tf_util as U
@@ -10,6 +11,8 @@ from gailtf.baselines.common.mpi_adam import MpiAdam
 from gailtf.baselines.common.cg import cg
 from contextlib import contextmanager
 import pickle as pkl
+import time
+import csv
 
 
 def traj_segment_generator(pi, env, horizon, stochastic, visualize=False):
@@ -36,6 +39,16 @@ def traj_segment_generator(pi, env, horizon, stochastic, visualize=False):
     save = False
     playerScore = opponentScore = 0
     wins = losses = ties = gamesTotal = totalPlayer = totalOpponent = 0
+
+    startTime  = time.time() #never updated
+    curTime    = startTime   #updated in loop
+    totalKOS   = 0
+    frameCount = 0
+
+    header = ['gamesTotal', 'wins', 'losses', 'ties', 'totalPlayer', 'totalOpponent', 'timeSinceLastRound', 'timeSinceStart', 'totalKOS', 'frameCount','estimated time']
+    csvLogger = open("log.csv", "w")
+    writer = csv.writer(csvLogger)
+    writer.writerow(header)
 
     while True:
         prevac = ac
@@ -70,8 +83,11 @@ def traj_segment_generator(pi, env, horizon, stochastic, visualize=False):
 
         cur_ep_ret += rew
         cur_ep_len += 1
+
+        frameCount+=1
+
         if new:
-            msg = format("End of game: score %d - %d" % (playerScore, opponentScore))
+            msg = format("End of gam_e (type 3(trainRL)): score %d - %d" % (playerScore, opponentScore))
             print(colorize(msg, color='red'))
             gamesTotal += 1
 
@@ -88,11 +104,40 @@ def traj_segment_generator(pi, env, horizon, stochastic, visualize=False):
             totalPlayer += playerScore
             totalOpponent += opponentScore
 
+            if(playerScore > 99 or opponentScore > 99):
+                totalKOS+=1
+
             playerScore = opponentScore = 0
 
-            msg = format("Status so far: \nGames played - %d wins - %d losses - %d ties - %d\n Total score: %d - %d" % (
+            msg = format("Status so far: \nGames played = %d | wins = %d | losses = %d | ties = %d\n  | Total score: %d - %d" % (
                 gamesTotal, wins, losses, ties, totalPlayer, totalOpponent))
             print(colorize(msg, color='red'))
+
+            newCurTime = time.time()
+            timeSinceLastRound = newCurTime-curTime
+            curTime = newCurTime
+            timeSinceStart = curTime-startTime
+            print("Total time spent this round  in seconds: %d" % ( timeSinceLastRound))
+            print("Total time spent since start in seconds: %d" % ( timeSinceStart))
+            print("Total KOs: %d" % (totalKOS)) 
+            print("Total frames this match: %d" % (frameCount)) 
+            print("Estimated in game time in seconds: %d" % (frameCount/20)) #assuming 20 fps, for some reason, it is always a little less than 20*120=2400 frames each match, we just choose to ignore this.
+            
+            # log
+
+            
+            data = [gamesTotal, wins, losses, ties, totalPlayer, totalOpponent, timeSinceLastRound, timeSinceStart, totalKOS, frameCount, frameCount/20 ]
+
+            
+            
+            writer.writerow(data)
+            
+
+
+
+
+
+            frameCount = 0
 
             ep_rets.append(cur_ep_ret)
             ep_lens.append(cur_ep_len)
@@ -100,6 +145,7 @@ def traj_segment_generator(pi, env, horizon, stochastic, visualize=False):
             cur_ep_len = 0
             ob = env.reset()
         t += 1
+    csvLogger.close()
 
 
 def add_vtarg_and_adv(seg, gamma, lam):

@@ -77,8 +77,9 @@ class Mujoco_Dset(object):
         self.acs = np.array([v for ac in acs for v in ac])
         if len(self.acs.shape) < 2:
             self.acs = np.reshape(self.acs, (self.acs.shape[0], 1))
-        # if len(self.acs) > 2:
-        #     self.acs = np.squeeze(self.acs)
+        #if len(self.acs) > 2:
+         #   self.acs = np.squeeze(self.acs)
+        print("obs = %d acs = %d" % (len(self.obs), len(self.acs)))
         assert len(self.obs) == len(self.acs)
         self.num_transition = len(self.obs)
         self.randomize = randomize

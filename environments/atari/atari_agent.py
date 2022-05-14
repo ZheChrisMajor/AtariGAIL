@@ -21,7 +21,7 @@ def display_arr(screen, arr, video_size, transpose):
 def playAtari(env,
               agent,
               U,
-              modelPath,
+              modelPath='/data/agent/trpo_gail.MontezumaRevenge-ram-v0.100.MD_score-561.meta',
               transpose=True,
               stochastic=False,
               fps=30,
@@ -96,7 +96,7 @@ def playAtari(env,
         pygame.event.get()
         if envDone:
             # results of game:
-            msg = format("End of game: score %d - %d" % (playerScore, opponentScore))
+            msg = format("End of game (type 1): score %d - %d" % (playerScore, opponentScore))
             print(colorize(msg, color='red'))
             gamesTotal += 1
             if playerScore > opponentScore:

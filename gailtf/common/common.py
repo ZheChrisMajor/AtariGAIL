@@ -1,4 +1,7 @@
 import argparse
+from asyncio.windows_events import NULL
+import csv
+import time
 import gym, numpy as np
 import pickle as pkl
 from mpi4py import MPI
@@ -71,7 +74,7 @@ def printArgs(args):
 
 def get_task_name(args):
     discrete = (".D." if args.discrete else ".MD")
-    if args.task == 'train_gail':
+    if args.task == 'train_gail' or args.task == 'discriminator':
         task_name = args.alg + "_gail."
         if args.pretrained:
             task_name += "with_pretrained."
@@ -229,6 +232,20 @@ def traj_segment_generator(pi, env, discriminator, horizon, stochastic, visualiz
     playerScore = opponentScore = 0
     wins = losses = ties = gamesTotal = totalPlayer = totalOpponent = 0
 
+    startTime  = time.time() #never updated
+    curTime    = startTime   #updated in loop
+    totalKOS   = 0
+    frameCount = 0
+    winsPast100 = 0
+    last100list = []
+
+    header = ['gamesTotal', 'wins', 'losses', 'ties', 'winsPast100', 'totalPlayer', 'totalOpponent', 'timeSinceLastRound', 'timeSinceStart', 'totalKOS', 'frameCount','estimated time']
+    logger = open("logGAIL.csv", "w",newline='')
+    writer = csv.writer(logger)
+    writer.writerow(header)
+
+  
+
     while True:
         prevac = ac
         ac, vpred = pi.act(stochastic, ob)
@@ -254,6 +271,59 @@ def traj_segment_generator(pi, env, discriminator, horizon, stochastic, visualiz
         prevacs[i] = prevac
 
         rew = discriminator.get_reward(ob, ac)
+
+
+
+        import keyboard
+        try:  # used try so that if user pressed other than the given key error will not be shown
+            if keyboard.is_pressed('F12'):
+                print('F12 Key press recognized, please wait while calculating average reward')
+
+                #Setup for logging results
+                headerx = ['Reward']
+                loggerx = open("logIsSamePlayer.csv", "w",newline='')
+                writerx = csv.writer(loggerx)
+                writerx.writerow(headerx)
+
+                # test reward
+                import pickle
+                with open("DreamTeam data/Trajectories/VeryGoodRL.pkl", 'rb') as traj_file:
+
+                    traj = pickle.load(traj_file)
+
+                    # print("\ndic\n")
+                    sumreward = 0
+                    length = 0
+                    for x,item in enumerate(traj): 
+
+                        dic2 = traj[x]
+                        ob2 = dic2.get('ob')
+                        ac2 = dic2.get('ac')
+                        length += len(ob2)
+                        
+
+
+                        for i,item in enumerate(ob2):
+                            xd = discriminator.get_reward(ob2[i],ac2[i])
+                            xd = xd[0]
+                            xd = xd[0]
+                            sumreward+=xd       
+                            writerx.writerow([xd])
+                            # print(i,": ",xd)
+                    averagereward = sumreward / length
+                    print("\n")
+                    print("Average reward:")
+                    print(averagereward)
+                    print("\n")
+
+                break
+        except:
+            print("exception in gailtf/algo/trpo_mpi in keyboard pressed w section")
+            break
+
+        
+
+
         ob, true_rew, new, _ = env.step(ac)
 
         if true_rew > 0:
@@ -272,8 +342,11 @@ def traj_segment_generator(pi, env, discriminator, horizon, stochastic, visualiz
         cur_ep_ret += rew
         cur_ep_true_ret += true_rew
         cur_ep_len += 1
+
+        frameCount+=1
+
         if new:
-            msg = format("End of game: score %d - %d" % (playerScore, opponentScore))
+            msg = format("End of game (type 4): score %d - %d" % (playerScore, opponentScore))
             print(colorize(msg, color='red'))
             gamesTotal += 1
 
@@ -281,20 +354,47 @@ def traj_segment_generator(pi, env, discriminator, horizon, stochastic, visualiz
                 save = True
 
             if playerScore > opponentScore:
+                last100list.append(1)
+                winsPast100+=1
                 wins += 1
             elif opponentScore > playerScore:
+                last100list.append(0)
                 losses += 1
             else:
+                last100list.append(0)
                 ties += 1
+
+            if len(last100list)>=100: 
+                winsPast100 -= last100list.pop(0)
 
             totalPlayer += playerScore
             totalOpponent += opponentScore
 
             playerScore = opponentScore = 0
 
-            msg = format("Status so far: \nGames played - %d wins - %d losses - %d ties - %d\n Total score: %d - %d" % (
-                gamesTotal, wins, losses, ties, totalPlayer, totalOpponent))
+            msg = format("Status so far: \nGames played = %d | wins = %d | losses = %d | ties = %d\n  | Total score: %d - %d | Games won past 100: %d" % (
+                gamesTotal, wins, losses, ties, totalPlayer, totalOpponent, winsPast100))
             print(colorize(msg, color='red'))
+
+            newCurTime = time.time()
+            timeSinceLastRound = newCurTime-curTime
+            curTime = newCurTime
+            timeSinceStart = curTime-startTime
+            print("Total time spent this round  in seconds: %d" % ( timeSinceLastRound))
+            print("Total time spent since start in seconds: %d" % ( timeSinceStart))
+            print("Total KOs: %d" % (totalKOS)) 
+            print("Total frames this match: %d" % (frameCount)) 
+            print("Estimated in game time in seconds: %d" % (frameCount/20)) #assuming 20 fps, for some reason, it is always a little less than 20*120=2400 frames each match, we just choose to ignore this.
+            
+
+            data = [gamesTotal, wins, losses, ties, winsPast100, totalPlayer, totalOpponent, timeSinceLastRound, timeSinceStart, totalKOS, frameCount, frameCount/20 ]
+
+            
+            
+            writer.writerow(data)
+            
+
+            frameCount = 0
 
             ep_rets.append(cur_ep_ret)
             ep_true_rets.append(cur_ep_true_ret)
@@ -328,10 +428,10 @@ def traj_episode_generator(pi, env, horizon, stochastic, render, downsample):
         prevac = ac
         ac, vpred = pi.act(stochastic, ob)
 
-        if not downsample and hasattr(env.unwrapped, 'ale'):
-            obs.append(env.unwrapped.ale.getScreenRGB2())
-        else:
-            obs.append(obs)
+        #if not downsample and hasattr(env.unwrapped, 'ale'):
+        #    obs.append(env.unwrapped.ale.getScreenRGB2())
+        #else:
+        #    obs.append(obs)
 
         obs.append(ob)
         news.append(new)
@@ -346,7 +446,7 @@ def traj_episode_generator(pi, env, horizon, stochastic, render, downsample):
             env.render()
 
         if t > 0 and (new or t % horizon == 0):
-            msg = format("End of game: score %d - %d" % (playerScore, opponentScore))
+            msg = format("End of game (type 5): score %d - %d" % (playerScore, opponentScore))
             print(colorize(msg, color='red'))
             gamesTotal += 1
             if playerScore > opponentScore:

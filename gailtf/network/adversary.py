@@ -69,7 +69,7 @@ class TransitionClassifier(object):
       _input = tf.concat([obs, acs_ph], axis=1) # concatenate the two input -> form a transition
       p_h1 = tf.contrib.layers.fully_connected(_input, self.hidden_size, activation_fn=tf.nn.tanh)
       p_h2 = tf.contrib.layers.fully_connected(p_h1, self.hidden_size, activation_fn=tf.nn.tanh)
-      logits = tf.contrib.layers.fully_connected(p_h2, 1, activation_fn=tf.identity)
+      logits = tf.contrib.layers.fully_connected(p_h2, 1, activation_fn=tf.sigmoid)
     return logits
 
   def get_trainable_variables(self):

@@ -1,6 +1,21 @@
+# Ignore train.py and logIsSamePlayer
+train.py
+logIsSamePlayer.csv
+
+# Avoid sharing training data
+data/
+
+# Avoid .idea files
+.idea/
+
+# Avoid csv files on repo
+logGAIL.csv
+log.csv
+
 # Platform-specific files and text editors
 .DS_Store
 *.swp
+*.vs
 
 # Mujoco
 MUJOCO_LOG.TXT
@@ -9,8 +24,6 @@ MUJOCO_LOG.TXT
 log/
 checkpoint/
 
-# Pickle files
-*.pkl
 
 
 ####### https://github.com/github/gitignore/blob/master/Python.gitignore #######

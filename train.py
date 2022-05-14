@@ -7,7 +7,7 @@ def main():
     args.env_id = 'Boxing-ram-v0'
 
     args.discrete = False  # switch action space between Discrete and MultiDiscrete
-    args.visualize = True  # show training in pygame window
+    args.visualize = False  # show training in pygame window
     args.policy_hidden_size = 100  # policy's size of hidden layers
     args.adversary_hidden_size = 100  # discriminator's size of hidden layers
     args.stochastic_policy = True  # type of environment
@@ -23,11 +23,12 @@ def main():
     # ================================ TASK ==============================
     # 'train_RL_expert', 'train_gail', 'RL_expert', 'human_expert', 'play_agent'
 
-    args.task = 'train_RL_expert'
-    args.task = 'RL_expert'
-    args.task = 'human_expert'
+    #args.task = 'train_RL_expert'
+    #args.task = 'RL_expert'
+    #args.task = 'human_expert'
     args.task = 'train_gail'
-    # args.task = 'play_agent'
+    #args.task = 'play_agent'
+    #args.task = 'discriminator'
 
     # ============================== ALGORITHM ============================
     # 'bc', 'trpo'
@@ -36,14 +37,26 @@ def main():
 
     # ================================ PATHS ==============================
 
-    args.expert_path = 'data/expert/stochastic.trpo.Boxing-ram-v0.MD.1500.score_100-0.pkl'
+    args.expert_path = 'DreamTeam data/Trajectories/Combined.pkl'
 
-    # args.load_model_path = 'data/training/trpo.Boxing-ram-v0.100.MD.1500/trpo.Boxing-ram-v0.100.MD.1500-0'
+    args.load_model_path = 'DreamTeam data/Gails/CombinedGail/trpo_gail.Boxing-ram-v0.100.MD-3800'
+
+    # args.load_model_path = 'data/agent/RL/trpo.Boxing-ram-v0.100.MD.1500-17700'
+
+    #args.expert_path = 'data/expert/human.MontezumaRevenge-ram-v0_MLP.50.pkl'
+
+    #XDDDDDDD#
+    #args.expert_path = 'data/training/trpo.Boxing-ram-v0.100.MD.1500-200.meta'
+    #args.expert_path = 'data/training/trpo.Boxing-ram-v0.100.MD.1500-200.data-00000-of-00001'
+    #args.load_model_path = 'data/training/trpo.Boxing-ram-v0.100.MD.1500-200.meta'
+    #args.load_model_path = 'data/training/trpo.Boxing-ram-v0.100.MD.1500-200.data-00000-of-00001'
+    
+
 
     # ============================ PATCHES =================================
 
     if args.task == 'RL_expert':
-        args.maxSampleTrajectories = 1  # set number of samples for RL expert
+        args.maxSampleTrajectories = 20  # set number of samples for RL expert
 
     if args.alg == 'bc':
         args.task = 'train_gail'

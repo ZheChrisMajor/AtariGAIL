@@ -108,7 +108,7 @@ def replayACS(env, modelPath, transpose=True, fps=30, zoom=None):
                     pygame.display.flip()
                     clock.tick(fps)
 
-            msg = format("End of game: score %d - %d" % (playerScore, opponentScore))
+            msg = format("End of game(type 2): score %d - %d" % (playerScore, opponentScore))
             print(colorize(msg, color='red'))
             gamesTotal += 1
             if playerScore > opponentScore:

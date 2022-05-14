@@ -1,5 +1,8 @@
 import tensorflow as tf
 import time
+import keyboard
+import pickle
+from copy import copy
 from gailtf.baselines.common import explained_variance, zipsame, dataset, fmt_row
 from collections import deque
 from gailtf.baselines.common.mpi_adam import MpiAdam
@@ -176,6 +179,8 @@ def learn(args,
         iters_so_far = int(load_model_path.split("-")[-1]) + 1
         U.load_state(load_model_path)
 
+
+
     while True:
         if callback: callback(locals(), globals())
         if max_timesteps and timesteps_so_far >= max_timesteps:
@@ -295,6 +300,9 @@ def learn(args,
 
             exp_logits, gen_logits = discriminator.get_logits(ob_batch, ac_batch, ob_expert, ac_expert)
 
+            
+
+
             try:
                 if iters_so_far == 0:
                     logger.log("Saving expert plot...")
@@ -308,7 +316,6 @@ def learn(args,
 
             d_losses.append(newlosses)
         logger.log(fmt_row(13, np.mean(d_losses, axis=0)))
-
         lrlocal = (seg["ep_lens"], seg["ep_rets"], seg["ep_true_rets"])  # local values
         listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
         lens, rews, true_rets = map(flatten_lists, zip(*listoflrpairs))
@@ -334,3 +341,26 @@ def learn(args,
             d_loss_stats.add_all_summary(writer, np.mean(d_losses, axis=0), iters_so_far)
             ep_stats.add_all_summary(writer, [np.mean(true_rewbuffer), np.mean(rewbuffer),
                                               np.mean(lenbuffer)], iters_so_far)
+        try:  # used try so that if user pressed other than the given key error will not be shown
+            if keyboard.is_pressed('F11'):
+                # Copy discriminator to file disc_file
+                print("--- Used Q to quit Gail ---")
+                #print(type(exp_logits))
+                #print("---------------------------")
+                a = copy(exp_logits)
+                filehandler = open("disc_file", 'wb')
+
+                pickle.dump(a, filehandler)
+                filehandler.close()
+                break
+        except:
+            # Copy discriminator to file disc_file
+            print("-- Used Q to quit Gail (Exception) --")
+            # print(type(exp_logits))
+            # print("-------------------------------------")
+            a = copy(exp_logits)
+            filehandler = open("disc_file", 'wb')
+
+            pickle.dump(a, filehandler)
+            filehandler.close()
+            break

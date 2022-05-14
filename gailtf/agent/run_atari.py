@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 import logging
 import os.path as osp
+import string
 import sys
+import pickle
 from gym.spaces import Discrete, MultiDiscrete
 
 from gailtf.baselines import bench
@@ -10,6 +12,7 @@ from environments.atari.wrappers.actionWrapper import ActionWrapper
 from gailtf.baselines.common import set_global_seeds
 from gailtf.baselines.common.atari_wrappers import make_atari
 from gailtf.dataset.mujoco import Mujoco_Dset
+
 
 PI = 'pi'
 
@@ -52,7 +55,7 @@ def train(args):
         logger.log("Playing agent...")
         from environments.atari.atari_agent import playAtari
         agent = policy_fn(args, PI, env, reuse=False)
-        playAtari(env, agent, U, modelPath=args.load_model_path, fps=15, stochastic=args.stochastic_policy, zoom=2, delay=10)
+        playAtari(env, agent, U, modelPath=args.load_model_path, fps=50000, stochastic=args.stochastic_policy, zoom=2, delay=10)
         env.close()
         sys.exit()
 
@@ -91,6 +94,11 @@ def train(args):
 
         from environments.atari.atari_human import playAtari
         sampleTrajectories = playAtari(env, fps=15, zoom=2, taskName=taskName)
+
+
+        print("\n")
+        print(sampleTrajectories)
+        print("\n")
 
         pkl.dump(sampleTrajectories, open(taskName, "wb"))
         env.close()
@@ -148,19 +156,20 @@ def train(args):
         dataset = Mujoco_Dset(expert_path=args.expert_path, ret_threshold=args.ret_threshold,
                               traj_limitation=args.traj_limitation)
 
-        # discriminator
+        # discriminator - DO A BREAK POINT, DUMBY HERE
         if len(env.observation_space.shape) > 2:
             from gailtf.network.adversary_cnn import TransitionClassifier
         else:
             if args.wasserstein:
                 from gailtf.network.w_adversary import TransitionClassifier
             else:
+                # This is the one used when we run train_gail
                 from gailtf.network.adversary import TransitionClassifier
 
         discriminator = TransitionClassifier(env,
                                              args.adversary_hidden_size,
                                              entcoeff=args.adversary_entcoeff)
-
+        
         pretrained_weight = None
         # pre-training with BC (optional):
         if (args.pretrained and args.task == 'train_gail') or args.alg == 'bc':
@@ -198,8 +207,92 @@ def train(args):
                        vf_iters=5,
                        vf_stepsize=1e-3
                        )
+        
         else:
             raise NotImplementedError
-
         env.close()
-        sys.exit()
+        #a,b =discriminator.get_logits()
+        #with tf.Session() as sess:
+         #   sess.run(tf.global_variables_initializer())
+          #  prediction = sess.run(a, feed_dict = {x: X})
+
+        # print("------------------------------------------------------------------------------------------------------------------"+a)
+        # if os.path.exists('Discriminator.pkl'):
+        #     os.rename('Discriminator.pkl','oldDiscriminator.pkl')
+        # file = open('Discriminator','w')
+        # pickle.dump(a,file)
+
+        # sys.exit()
+    
+    if args.task == 'discriminator':
+        taskName = get_task_name(args)
+        args.checkpoint_dir = osp.join(args.checkpoint_dir, taskName)
+        args.log_dir = osp.join(args.log_dir, taskName)
+        args.task_name = taskName
+
+        dataset = Mujoco_Dset(expert_path=args.expert_path, ret_threshold=args.ret_threshold,
+                              traj_limitation=args.traj_limitation)
+
+        # discriminator
+        if len(env.observation_space.shape) > 2:
+            from gailtf.network.adversary_cnn import TransitionClassifier
+        else:
+            if args.wasserstein:
+                from gailtf.network.w_adversary import TransitionClassifier
+            else:
+                from gailtf.network.adversary import TransitionClassifier
+
+        discriminator = TransitionClassifier(env,
+                                             args.adversary_hidden_size,
+                                             entcoeff=args.adversary_entcoeff)
+        import tensorflow as tf
+        import time
+        from gailtf.baselines.common import explained_variance, zipsame, dataset, fmt_row
+        from collections import deque
+        from gailtf.baselines.common.mpi_adam import MpiAdam
+        from gailtf.baselines.common.cg import cg
+        from contextlib import contextmanager
+        from gailtf.common.statistics import stats
+       
+        pretrained = args.pretrained
+        g_step = args.g_step
+        d_step = args.d_step
+        timesteps_per_batch = args.trajectoriesPerBatch
+        max_kl = args.max_kl
+        max_iters = args.num_timesteps
+        entcoeff = args.policy_entcoeff
+        ckpt_dir = args.checkpoint_dir
+        log_dir = args.log_dir
+        save_per_iter = args.save_per_iter
+        load_model_path = args.load_model_path
+        task_name = args.task_name
+        visualize = args.visualize
+        max_to_keep = args.max_to_keep
+        pretrained_weight = behavior_clone.learn(args,
+                                                         env,
+                                                         policy_fn,
+                                                         dataset)
+        pi = policy_fn(args, "pi", env, reuse=(pretrained_weight != None))
+        oldpi = policy_fn(args, "oldpi", env, reuse=(pretrained_weight != None))
+        atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
+       
+        
+        ac = pi.pdtype.sample_placeholder([None])
+
+        kloldnew = oldpi.pd.kl(pi.pd)
+        ent = pi.pd.entropy()
+        meankl = U.mean(kloldnew)
+        meanent = U.mean(ent)
+        entbonus = entcoeff * meanent
+
+        
+
+        ratio = tf.exp(pi.pd.logp(ac) - oldpi.pd.logp(ac))  # advantage * pnew / pold
+        surrgain = U.mean(ratio * atarg)
+
+        optimgain = surrgain + entbonus
+        losses = [optimgain, meankl, entbonus, surrgain, meanent]
+        loss_names = ["optimgain", "meankl", "entloss", "surrgain", "entropy"]
+        print(loss_names)
+        print(losses)
+        
