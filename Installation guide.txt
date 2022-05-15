@@ -1,0 +1,19 @@
+Install c++ in visual studio
+Download and install microsoft mpi v10.0
+
+Normal powershell:
+pip install --upgrade pip
+pip install gym==0.10.9
+pip install atari-py==0.1.15
+pip install mpi4py
+pip install seaborn
+pip install keyboard
+
+Admin powershell:
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" ``
+-Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+
+Normal powershell:
+pip install tensorflow==1.13.1
+pip install tqdm
+python train.py
