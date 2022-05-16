@@ -281,7 +281,7 @@ def traj_segment_generator(pi, env, discriminator, horizon, stochastic, visualiz
 
                 #Setup for logging results
                 headerx = ['Reward']
-                loggerx = open("logIsSamePlayer.csv", "w",newline='')
+                loggerx = open("Rewards.csv", "w",newline='')
                 writerx = csv.writer(loggerx)
                 writerx.writerow(headerx)
 
@@ -318,7 +318,7 @@ def traj_segment_generator(pi, env, discriminator, horizon, stochastic, visualiz
 
                 break
         except:
-            print("exception in gailtf/algo/trpo_mpi in keyboard pressed w section")
+            print("exception in gailtf/algo/trpo_mpi in keyboard pressed F12 section")
             break
 
         
